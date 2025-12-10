@@ -1,0 +1,87 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TransactionType {
+  DEPOSIT
+  TRANSFER
+  WITHDRAWAL
+}
+
+enum TransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+model User {
+  id         String    @id @default(uuid())
+  email      String    @unique
+  name       String?
+  googleId   String?   @unique
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  wallets    Wallet[]
+  apiKeys    ApiKey[]
+}
+
+model Wallet {
+  id           String      @id @default(uuid())
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String      
+  walletNumber String      @unique
+  currency     String      @default("NGN")             // e.g. "NGN", "USD", "GBP", "KES"
+  balance      BigInt      @default(0) // store smallest currency unit (kobo/cents)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  // transactions where this wallet was credited/debited
+  outgoing     Transaction[] @relation("outgoingTransactions")
+  incoming     Transaction[] @relation("incomingTransactions")
+
+  @@unique([userId, currency], name: "userId_currency")
+  @@index([userId])
+}
+
+model Transaction {
+  id            String            @id @default(uuid())
+  type          TransactionType
+  amount        BigInt            // smallest currency unit
+  reference     String            @unique
+  status        TransactionStatus @default(PENDING)
+  // optional wallets (for transfers)
+  fromWallet    Wallet?           @relation("outgoingTransactions", fields: [fromWalletId], references: [id])
+  fromWalletId  String?
+  toWallet      Wallet?           @relation("incomingTransactions", fields: [toWalletId], references: [id])
+  toWalletId    String?
+  metadata      Json?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  // Useful for auditing which user initiated (nullable if system)
+  initiatedById String?           // user id who initiated
+}
+
+model ApiKey {
+  id           String    @id @default(uuid())
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String
+  name         String
+  // store hashed key in DB; return raw key once on creation
+  keyHash      String
+  permissions  String[]  // e.g. ["deposit","transfer","read"]
+  expiresAt    DateTime
+  revoked      Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+
+  @@index([userId])
+}
