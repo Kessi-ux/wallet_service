@@ -21,8 +21,13 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api-docs', app, document);
 
-  await app.listen(process.env.PORT ?? 3000);
-  console.log(`Server running on http://localhost:${process.env.PORT ?? 3000}/api/v1`);
-  console.log(`Swagger docs: http://localhost:${process.env.PORT ?? 3000}/api-docs`);
+  const port = process.env.PORT ?? 3000;
+  await app.listen(port);
+
+  // Get the actual URL (works locally and in production)
+  const baseUrl = process.env.BASE_URL || `http://localhost:${port}`;
+
+  console.log(`Server running on ${baseUrl}/api/v1`);
+  console.log(`Swagger docs: ${baseUrl}/api-docs`);
 }
 bootstrap();

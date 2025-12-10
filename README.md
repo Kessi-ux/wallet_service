@@ -1,98 +1,234 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+## Wallet Service — NestJS + Prisma + Paystack + Google OAuth
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A production-ready digital wallet API built with NestJS, Prisma, PostgreSQL, Google OAuth, JWT, API Keys, Paystack Payments, and Webhooks.
+Built using pnpm package manager.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+GitHub Repo:[https://github.com/Kessi-ux/wallet_service.git]
 
-## Description
+### Features
+Authentication & Security
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+Google OAuth2 login
 
-## Project setup
+JWT authentication
 
+API key system
+
+Permission-based access control
+
+Auth & API guards
+
+### Wallet Management
+
+Auto-create wallet on user registration
+
+Deposit initialization (Paystack)
+
+Secure Paystack webhook handler
+
+Manual deposit verification
+
+Wallet balance
+
+User-to-User transfers (atomic)
+
+Transaction history
+
+Infrastructure
+
+PostgreSQL + Prisma ORM
+
+Ngrok-ready webhook support
+
+Production-ready (Railway deployment)
+
+## Project Setup
+1️. Clone the Project
 ```bash
-$ pnpm install
+git clone https://github.com/Kessi-ux/wallet_service.git
+
+cd wallet_service
+```
+2️. Install Dependencies (pnpm)
+```bash
+pnpm install
 ```
 
-## Compile and run the project
+3️. Setup Environment Variables
 
+Create a .env file:
 ```bash
-# development
-$ pnpm run start
+DATABASE_URL="postgresql://..."
+JWT_SECRET="your_jwt_secret"
 
-# watch mode
-$ pnpm run start:dev
+GOOGLE_CLIENT_ID="your_google_client_id"
+GOOGLE_CLIENT_SECRET="your_google_client_secret"
+GOOGLE_CALLBACK_URL="http://${BaseUrl}/auth/google/callback"
 
-# production mode
-$ pnpm run start:prod
+PAYSTACK_SECRET_KEY="your_secret_key"
+PAYSTACK_PUBLIC_KEY="your_public_key"
+PAYSTACK_WEBHOOK_SECRET="your_webhook_secret"
 ```
 
-## Run tests
-
+Database Setup (Prisma + PostgreSQL)
+4️. Initialize Prisma
 ```bash
-# unit tests
-$ pnpm run test
+pnpm prisma init
+```
+5️. Run Migrations
+```bash
+pnpm prisma migrate dev
+```
+### Authentication Flow
+Google OAuth → JWT Login
 
-# e2e tests
-$ pnpm run test:e2e
+Endpoints:
 
-# test coverage
-$ pnpm run test:cov
+GET /auth/google
+GET /auth/google/callback
+
+
+Generated Controllers/Strategies:
+
+AuthController
+
+GoogleStrategy
+
+JwtStrategy
+
+AuthModule
+
+### API Key System
+Endpoints
+Method	Endpoint	Description
+POST	/keys/create	Generate new API key (hashed before save)
+POST	/keys/rollover	Replace expired API key
+GET	/keys	List keys for user
+API Key Guard
+
+Validates x-api-key
+
+Checks permissions
+
+Prevents expired key usage
+
+### Wallet Module
+Auto-Create Wallet
+
+When a user registers → a wallet is automatically created.
+
+### Deposit Initialization
+POST /wallet/deposit
+
+Validates JWT or API key
+
+Calls Paystack initialize endpoint
+
+Returns authorization_url + reference
+
+### Paystack Webhook (Critical)
+POST /wallet/paystack/webhook
+
+Verify signature
+
+Enforce idempotency
+
+Credit wallet
+
+Update transaction table
+
+### Manual Verification
+GET /wallet/deposit/:reference/status
+
+### Wallet Balance
+GET /wallet/balance
+
+### Transfers
+POST /wallet/transfer
+
+Atomic with prisma.$transaction()
+
+Debit sender → Credit receiver → Save transaction
+
+### Transaction History
+GET /wallet/transactions
+
+## Local Webhook Testing (Ngrok)
+
+Start Nest:
+
+pnpm start:dev
+
+Start ngrok:
+
+ngrok http 3000
+
+Add webhook to Paystack:
+
+https://random-id.ngrok.app/wallet/paystack/webhook
+
+Deployment
+Supported Platforms
+
+Railway
+
+Required Production ENV Vars
+```bash
+DATABASE_URL
+JWT_SECRET
+
+GOOGLE_CLIENT_ID
+GOOGLE_CLIENT_SECRET
+GOOGLE_CALLBACK_URL
+
+PAYSTACK_PUBLIC_KEY
+PAYSTACK_SECRET_KEY
+PAYSTACK_WEBHOOK_SECRET
 ```
 
-## Deployment
+Recommended Testing Tools
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+Postman
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Thunder Client
 
+Swagger
+
+Ngrok
+
+Paystack Test Mode
+
+Scripts
 ```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
+"start": "nest start",
+"start:dev": "nest start --watch",
+"build": "nest build",
+"prisma:migrate": "prisma migrate dev",
+"prisma:studio": "prisma studio"
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+Tech Stack
 
-## Resources
+NestJS (Backend Framework)
 
-Check out a few resources that may come in handy when working with NestJS:
+Prisma (ORM)
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+PostgreSQL
 
-## Support
+Paystack API
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+Google OAuth2
 
-## Stay in touch
+JWT Auth
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+pnpm (Package Manager)
 
-## License
+### How to Contribute
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+Fork the repo
+
+Create a new branch
+
+Commit changes
+
+Submit PR
