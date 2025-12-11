@@ -51,6 +51,9 @@ export class WalletController {
     const paystackSecret = process.env.PAYSTACK_SECRET;
     if (!paystackSecret) throw new Error('PAYSTACK_SECRET is not set');
     const rawBody = req.body;
+
+    console.log('🚀 PAYSTACK WEBHOOK HIT (POST) 🚀');
+
     return this.walletService.handlePaystackWebhook(rawBody, signature, paystackSecret);
   }
 
