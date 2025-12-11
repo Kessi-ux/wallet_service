@@ -129,6 +129,8 @@ export class WalletService {
     where: { email: data.customer.email }, // <--- edit: fetch user first
   });
 
+  console.log("Paystack Customer Email:", data.customer.email);
+
   if (!user) {
     throw new BadRequestException('User not found for Paystack customer'); // <--- edit: handle missing user
   }
@@ -142,14 +144,15 @@ export class WalletService {
       throw new BadRequestException('Wallet not found');
     }
 
-    const creditAmount = data.amount / 100;
+    const creditAmount = BigInt(data.amount) / BigInt(100);
 
+    try{
     // Atomic transaction
     await this.prisma.$transaction(async (prisma) => {
       // Credit wallet
       await prisma.wallet.update({
         where: { id: userWallet.id },
-        data: { balance: { increment: data.amount / 100 } }, // Paystack sends amount in kobo
+        data: { balance: { increment: creditAmount } }, // Paystack sends amount in kobo
       });
 
       // Save transaction
@@ -165,6 +168,9 @@ export class WalletService {
         },
       });
     });
+    } catch(e){
+      console.error("wallet update failed", e)
+    }
 
     return { status: 'success', credited: creditAmount };
   }
