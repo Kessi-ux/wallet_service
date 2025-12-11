@@ -10,7 +10,7 @@ async function bootstrap() {
 
   app.enableCors();
 
-  app.use('/wallet/paystack/webhook', bodyParser.raw({ type: '*/*' }));
+  app.use('/api/v1/wallet/paystack/webhook', bodyParser.raw({ type: '*/*' }));
 
   // Swagger setup
   const config = new DocumentBuilder()

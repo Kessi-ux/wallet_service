@@ -94,85 +94,98 @@ export class WalletService {
     body: any,
     signature: string,
     paystackSecret: string
-  ) {
+) {
+  // 1️⃣ Validate Paystack signature
+  const hash = crypto
+    .createHmac('sha512', paystackSecret)
+    .update(JSON.stringify(body))
+    .digest('hex');
 
-    // 1. Validate Paystack signature
-    const hash = crypto
-      .createHmac('sha512', paystackSecret)
-      .update(JSON.stringify(body))
-      .digest('hex');
-
-    if (hash !== signature) {
-      throw new BadRequestException('Invalid Paystack signature');
-    }
-
-    const { event, data } = body;
-
-    // Only process charge.success
-    if (event !== 'charge.success') {
-      return { status: 'ignored' };
-    }
-
-    const reference = data.reference;
-
-    // 2. Idempotency check
-    const existing = await this.prisma.transaction.findUnique({
-      where: { reference },
-    });
-
-    if (existing) {
-      return { status: 'already_processed' };
-    }
-
-      // 3️⃣ Find the user by Paystack customer email
-  const user = await this.prisma.user.findUnique({
-    where: { email: data.customer.email }, // <--- edit: fetch user first
-  });
-
-  console.log("Paystack Customer Email:", data.customer.email);
-
-  if (!user) {
-    throw new BadRequestException('User not found for Paystack customer'); // <--- edit: handle missing user
+  if (hash !== signature) {
+    throw new BadRequestException('Invalid Paystack signature');
   }
 
-    // 3. Update wallet & transaction
-    let userWallet = await this.prisma.wallet.findUnique({
-      where: { userId_currency: { userId: user.id, currency: 'NGN' } }, // adjust according to your schema
-    });
+  const { event, data } = body;
 
-    if (!userWallet) {
-      throw new BadRequestException('Wallet not found');
-    }
+  // Only process charge.success
+  if (event !== 'charge.success') {
+    console.log("Ignored event:", event);
+    return { status: 'ignored' };
+  }
 
-    const creditAmount = BigInt(data.amount) / BigInt(100);
+  const reference = data.reference;
 
-    try{
-    // Atomic transaction
-    await this.prisma.$transaction(async (prisma) => {
-      // Credit wallet
-      await prisma.wallet.update({
+  //  Idempotency check
+  const existing = await this.prisma.transaction.findUnique({
+    where: { reference },
+  });
+
+  // If SUCCESS already, skip
+  if (existing && existing.status === 'SUCCESS') {
+    return { status: 'already_processed' };
+  }
+
+  // Find the user by Paystack customer email
+  const user = await this.prisma.user.findUnique({
+    where: { email: data.customer.email },
+  });
+
+  if (!user) {
+    throw new BadRequestException('User not found for Paystack customer');
+  }
+
+  // Find user's wallet
+  const userWallet = await this.prisma.wallet.findUnique({
+    where: { userId_currency: { userId: user.id, currency: 'NGN' } },
+  });
+
+  if (!userWallet) {
+    throw new BadRequestException('Wallet not found');
+  }
+  
+  const creditAmount = BigInt(data.amount) / BigInt(100); // Convert kobo to NGN
+
+  try {
+    // 5️⃣ Handle PENDING transaction or create new
+    if (existing && existing.status === 'PENDING') {
+
+      const updatedWallet = await this.prisma.wallet.update({
         where: { id: userWallet.id },
-        data: { balance: { increment: creditAmount } }, // Paystack sends amount in kobo
+        data: { balance: { increment: creditAmount } },
       });
 
-      // Save transaction
-      await prisma.transaction.create({
-        data: {
-          toWalletId: userWallet.id,
-          type: 'DEPOSIT',
-          status: 'SUCCESS',
-          amount: creditAmount,
-          reference: reference,
-          metadata: { source: 'Paystack' },
-          initiatedById: null,
-        },
+      await this.prisma.transaction.update({
+        where: { reference },
+        data: { status: 'SUCCESS', amount: creditAmount },
       });
-    });
-    } catch(e){
-      console.error("wallet update failed", e)
+
+    } else {
+      // Create a new transaction
+      await this.prisma.$transaction(async (prisma) => {
+        const updatedWallet = await prisma.wallet.update({
+          where: { id: userWallet.id },
+          data: { balance: { increment: creditAmount } },
+        });
+
+        const tx = await prisma.transaction.create({
+          data: {
+            toWalletId: userWallet.id,
+            type: 'DEPOSIT',
+            status: 'SUCCESS',
+            amount: creditAmount,
+            reference: reference,
+            metadata: { source: 'Paystack' },
+            initiatedById: null,
+          },
+        });
+      });
     }
+  } catch (e) {
+    console.error("Wallet update failed", e);
+    throw new BadRequestException('Failed to update wallet');
+  }
 
-    return { status: 'success', credited: creditAmount };
+  return { status: 'success', credited: creditAmount.toString() };
   }
 
   async verifyDeposit(trxref: string) {
