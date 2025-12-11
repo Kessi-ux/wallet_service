@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import * as bodyParser from 'body-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -8,6 +9,8 @@ async function bootstrap() {
   app.setGlobalPrefix('api/v1');
 
   app.enableCors();
+
+  app.use('/wallet/paystack/webhook', bodyParser.raw({ type: '*/*' }));
 
   // Swagger setup
   const config = new DocumentBuilder()
