@@ -51,17 +51,19 @@ export class WalletController {
     const paystackSecret = process.env.PAYSTACK_SECRET;
     if (!paystackSecret) throw new Error('PAYSTACK_SECRET is not set');
     const rawBody = req.body;
+    const bodyString = rawBody.toString('utf-8');
+    const bodyJson = JSON.parse(bodyString);
 
     console.log('🚀 PAYSTACK WEBHOOK HIT (POST) 🚀');
 
-    return this.walletService.handlePaystackWebhook(rawBody, signature, paystackSecret);
+    return this.walletService.handlePaystackWebhook(bodyJson, signature, paystackSecret);
   }
 
-  @Get('paystack/webhook')
-  ping() {
-    console.log('[DEBUG] GET /wallet/paystack/webhook hit');
-    return 'Webhook alive';
-  }
+  // @Get('paystack/webhook')
+  // ping() {
+  //   console.log('[DEBUG] GET /wallet/paystack/webhook hit');
+  //   return 'Webhook alive';
+  // }
 
   @Get('manual-verify')
   @ApiOperation({ summary: 'Manually verify a Paystack transaction' })
