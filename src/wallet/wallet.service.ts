@@ -135,12 +135,14 @@ export class WalletService {
 
     // 3. Update wallet & transaction
     let userWallet = await this.prisma.wallet.findUnique({
-      where: { userId_currency: { userId: String(data.customer.id), currency: 'NGN' } }, // adjust according to your schema
+      where: { userId_currency: { userId: user.id, currency: 'NGN' } }, // adjust according to your schema
     });
 
     if (!userWallet) {
       throw new BadRequestException('Wallet not found');
     }
+
+    const creditAmount = data.amount / 100;
 
     // Atomic transaction
     await this.prisma.$transaction(async (prisma) => {
@@ -156,7 +158,7 @@ export class WalletService {
           toWalletId: userWallet.id,
           type: 'DEPOSIT',
           status: 'SUCCESS',
-          amount: body.data.amount,
+          amount: creditAmount,
           reference: reference,
           metadata: { source: 'Paystack' },
           initiatedById: null,
@@ -164,7 +166,7 @@ export class WalletService {
       });
     });
 
-    return { status: 'success' };
+    return { status: 'success', credited: creditAmount };
   }
 
   async verifyDeposit(trxref: string) {
